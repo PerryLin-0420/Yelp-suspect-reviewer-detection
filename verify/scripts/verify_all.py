@@ -28,7 +28,8 @@ from loguru import logger
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 BASE          = Path(__file__).parents[2]
-DB_PATH       = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 OUT           = Path(__file__).parents[1] / "analysis"
 
 REMOVAL       = BASE / "lifetime kmeans" / "result" / "final" / "removal_final.parquet"

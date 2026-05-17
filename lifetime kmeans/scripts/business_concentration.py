@@ -24,7 +24,8 @@ import matplotlib.dates as mdates
 from pathlib import Path
 from loguru import logger
 
-DB_PATH       = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 BASE_DIR      = Path(__file__).parents[1]
 SINGLE_RESULT = BASE_DIR / "result"   / "single_review"
 SINGLE_OUT    = BASE_DIR / "analysis" / "single_review"

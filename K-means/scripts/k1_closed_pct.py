@@ -23,7 +23,8 @@ import datetime
 from pathlib import Path
 from loguru import logger
 
-DB_PATH      = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 K1_DIR       = Path(__file__).parents[1]
 LT_FINAL_DIR = K1_DIR.parent / "lifetime kmeans" / "result" / "final"
 ANALYSIS_OUT = K1_DIR / "analysis"

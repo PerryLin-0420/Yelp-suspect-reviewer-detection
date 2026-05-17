@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-DB_PATH        = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 candidates_path = Path(__file__).parents[1] / "result" / "anomaly_candidates.parquet"
 output_path    = Path(__file__).parents[1] / "result" / "sample_reviews.csv"
 

@@ -21,7 +21,8 @@ from loguru import logger
 from sklearn.cluster import MiniBatchKMeans
 from scipy.stats import gaussian_kde
 
-DB_PATH    = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 BASE_DIR   = Path(__file__).parents[1]
 SINGLE_ANALYSIS = BASE_DIR / "analysis" / "single_review"
 MULTI_ANALYSIS  = BASE_DIR / "analysis" / "multi_review"

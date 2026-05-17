@@ -14,7 +14,8 @@ import matplotlib.gridspec as gridspec
 from pathlib import Path
 from loguru import logger
 
-DB_PATH     = Path("E:/Project/Yelp/database/YELP.duckdb")
+import sys; sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH
 sub_path    = Path(__file__).parents[1] / "analysis" / "subclustering" / "subclustering_assignments.parquet"
 output_dir  = Path(__file__).parents[1] / "analysis" / "deep_profile"
 
