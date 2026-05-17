@@ -1,0 +1,15 @@
+# Data outputs — not for repo
+**result/
+*.parquet
+*.csv
+
+# Analysis plots — selectively add with git add -f
+K-means/analysis/
+lifetime kmeans/analysis/
+user behavier matrix/
+
+# Internal
+.claude/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
