@@ -8,6 +8,9 @@ K-means/analysis/
 lifetime kmeans/analysis/
 user behavier matrix/
 
+# Local config — contains personal paths, never commit
+config.py
+
 # Internal
 .claude/
 __pycache__/

@@ -16,7 +16,18 @@ Finds behaviorally anomalous accounts across two independent dimensions, then co
 
 All scripts read from a single `YELP.duckdb`. Tables needed: `review`, `user`, `business`, `business_hours`.
 
-Download the raw JSON from [Yelp Open Dataset](https://www.yelp.com/dataset). The database build scripts are in a separate repo — each entity has its own `autobuild_db.bat` that populates the relevant tables once the JSON is in place. Manual import works too as long as the schema matches.
+There is no pre-built database to download — you need to build it yourself:
+
+1. Download the raw JSON from [Yelp Open Dataset](https://www.yelp.com/dataset) (academic license, free)
+2. Import the four entities into DuckDB — the schema must match the column names used in these scripts. The database build scripts are in a separate repo; each entity has its own `autobuild_db.bat` that populates the relevant table once the JSON is in place. Manual import works too.
+3. Copy `config.example.py` to `config.py` and point it to your database file:
+
+```bash
+cp config.example.py config.py
+# then edit config.py: set DB_PATH to your YELP.duckdb location
+```
+
+All scripts import `DB_PATH` from `config.py` — it's the only path you need to change. `config.py` is gitignored and never committed.
 
 ---
 
