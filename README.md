@@ -42,12 +42,17 @@ Each user is represented as a **24-dim probability vector** of hourly review act
 - Sub-clustering isolates the most extreme groups: Sub3/Sub4 have only **9–14%** of morning reviews falling during business open hours (vs. 43% for normal clusters)
 - Cosine similarity against the Sub3/Sub4 centroid → **4,037 candidates** across all 287k users
 
+![Cluster overview](K-means/analysis/kmeans_clustering/cluster_overview.png)
+![Morning ratio by cluster](K-means/analysis/kmeans_clustering/morning_ratio_by_cluster.png)
+
 ### Branch 2 — Account Lifetime K-Means
 
 Each user's reviews mapped onto a normalized account lifetime **[0, 1]**, represented as a **50-bin density vector**.
 
 - Single-review users (n=1,135,945): 28% posted their only review within ~19 days of account creation, then vanished
 - Multi-review users (n=851,896): burst-then-die pattern identified by low entropy and peak at position 0.00
+
+![Lifetime position distribution](lifetime%20kmeans/analysis/single_review/position_distribution.png)
 
 ### Business Concentration Confirmation
 
@@ -96,6 +101,8 @@ Output: `lifetime kmeans/result/final/removal_final.parquet` — columns: `user_
 ### Back-Verification: Two Branches, Two Different Populations
 
 Projecting the 3,439 flagged users back onto all dimensions shows they look normal on the dimensions they weren't selected for (avg K1 cosine similarity 0.168 vs threshold 0.546; closed_pct Δ = +0.018).
+
+![Hourly fingerprint by category](verify/analysis/v2_hourly_fingerprint.png)
 
 That's not a problem — it's evidence that **each detection path found a genuinely distinct behavioral class**:
 

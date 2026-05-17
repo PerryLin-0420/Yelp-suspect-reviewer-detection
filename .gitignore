@@ -3,9 +3,6 @@
 *.parquet
 *.csv
 
-# Analysis plots — selectively add with git add -f
-K-means/analysis/
-lifetime kmeans/analysis/
 user behavier matrix/
 
 # Local config — contains personal paths, never commit
