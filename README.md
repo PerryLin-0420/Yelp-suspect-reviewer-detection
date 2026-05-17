@@ -1,115 +1,119 @@
-# Yelp 低可信度評論者偵測
+# Yelp Low-Credibility Reviewer Detection
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![DuckDB](https://img.shields.io/badge/DuckDB-0.10+-yellow)
 
-針對 [Yelp Open Dataset](https://www.yelp.com/dataset)（1,987,841 名用戶）做的無監督偵測 side project，不需要標記資料。
+Unsupervised detection of low-credibility reviewers on the [Yelp Open Dataset](https://www.yelp.com/dataset) (1,987,841 users). No labeled data required.
 
-從兩個維度找行為異常的帳號，再透過店家層次的時間群聚確認是不是真的有協調刷評。本質是一套**行為特徵過濾器**，不是要宣稱抓到了所有假帳號。
+Finds behaviorally anomalous accounts across two independent dimensions, then confirms coordinated activity through business-level temporal clustering. The output is a **behavioral filter** — not a claim to have caught every fake account.
 
----
-
-## 前置：資料庫
-
-分析腳本統一吃 `YELP.duckdb`。需要的資料表：`review`、`user`、`business`、`business_hours`。
-
-從 [Yelp Open Dataset](https://www.yelp.com/dataset) 下載原始 JSON 後，另有一套獨立的清洗腳本負責建表（未包含在本 repo，各實體各自一支 `autobuild_db.bat`，放好 JSON 直接跑）。手動建表或用其他方式匯入也可以，只要 schema 對上即可。
+> Side project. Not formal research.  
+> 繁體中文說明：[README_MANDARIN.md](README_MANDARIN.md)
 
 ---
 
-## 怎麼跑的
+## Prerequisites — Database
 
-### 分支一：時段 K-Means
+All scripts read from a single `YELP.duckdb`. Tables needed: `review`, `user`, `business`, `business_hours`.
 
-每個用戶用 24 維的小時發評比例向量表示。正常人有作息，在不該出現的時段大量發評本身就是信號。
+Download the raw JSON from [Yelp Open Dataset](https://www.yelp.com/dataset). The database build scripts are in a separate repo — each entity has its own `autobuild_db.bat` that populates the relevant tables once the JSON is in place. Manual import works too as long as the schema matches.
 
-- Yelp 存的是本地時間（實證：PA 用戶發評高峰 = 18:00 美東）
-- K-Means（K=20）找出早晨比例異常高的 cluster，再子聚類隔離最極端的 Sub3/Sub4
-- 交叉驗證：Sub3/Sub4 的早晨評論，只有 9–14% 落在店家已開業時段（正常群：43%）
-- 對全體 287k 用戶算餘弦相似度 → **4,037 名候選人**
+---
 
-### 分支二：帳號生命週期 K-Means
+## How It Works
 
-每個用戶的評論在帳號生命週期 [0, 1] 上的密度分布。
+### Branch 1 — Time-of-Day K-Means
 
-- 單評論帳號（n=1,135,945）：28% 在創號後 19 天內發出唯一評論，消失
-- 多評論帳號（n=851,896）：找爆發後沉默的模式（低熵、峰值在 0.00）
+Each user is represented as a **24-dim probability vector** of hourly review activity. Normal people have routines; posting heavily at unusual hours is a signal in itself.
 
-### 店家群聚確認
+- Yelp stores local timestamps (verified empirically — PA users peak at 18:00 Eastern)
+- MiniBatchKMeans (K=20) identifies clusters with abnormally high morning activity (06:00–11:59)
+- Sub-clustering isolates the most extreme groups: Sub3/Sub4 have only **9–14%** of morning reviews falling during business open hours (vs. 43% for normal clusters)
+- Cosine similarity against the Sub3/Sub4 centroid → **4,037 candidates** across all 287k users
 
-光有候選帳號不夠，還要看他們有沒有集中評同一家店。
+### Branch 2 — Account Lifetime K-Means
 
-| 指標 | 定義 |
-|------|------|
-| `coverage_rate` | 可疑帳號數 / 該店家總評論數 |
-| `span_days` | 最早到最晚一筆可疑評論的間距 |
-| `dense_30d_pct` | 可疑評論落在最密集 30 天窗口的比例 |
+Each user's reviews mapped onto a normalized account lifetime **[0, 1]**, represented as a **50-bin density vector**.
+
+- Single-review users (n=1,135,945): 28% posted their only review within ~19 days of account creation, then vanished
+- Multi-review users (n=851,896): burst-then-die pattern identified by low entropy and peak at position 0.00
+
+### Business Concentration Confirmation
+
+Candidate accounts alone aren't enough — they also need to cluster on the same businesses.
+
+| Metric | Definition |
+|--------|------------|
+| `coverage_rate` | # suspect accounts / total reviews for that business |
+| `span_days` | Days between first and last suspect review |
+| `dense_30d_pct` | Fraction of suspect reviews in the densest 30-day window |
 | `suspicion_score` | `coverage_rate × dense_30d_pct` |
 
-7 天內集中 = 協調行為；`suspicion_score ≥ 0.5` = 高重疊。
+Coordinated burst: `span_days < 7` — High overlap: `suspicion_score ≥ 0.5`
 
-完整方法論：[ANALYSIS_ZH.md](ANALYSIS_ZH.md) ｜ [ANALYSIS_EN.md](ANALYSIS_EN.md)  
-執行順序：[PIPELINE.md](PIPELINE.md)
-
----
-
-## 結果
-
-| 類別 | 人數 | 佔比 |
-|------|------|------|
-| 協調刷評（單評論帳號） | 1,424 | 0.072% |
-| 協調刷評（爆發型帳號） | 744 | 0.037% |
-| 單評論高店家重疊 | 1,193 | 0.060% |
-| 時段異常 + 協調確認 | 78 | 0.004% |
-| **合計** | **3,439** | **0.173%** |
-
-輸出：`lifetime kmeans/result/final/removal_final.parquet`（`user_id` + `reason`）
+Full methodology: [ANALYSIS_EN.md](ANALYSIS_EN.md) | [ANALYSIS_MANDARIN.md](ANALYSIS_MANDARIN.md)  
+Execution order: [PIPELINE.md](PIPELINE.md)
 
 ---
 
-## 這套方法的特性與局限
+## Results
 
-**能做到的：**
-- 行為異常偵測，不需要標記資料、不審查評論文字
-- 兩條路線設計獨立，各自抓不同動機的帳號（見回頭驗證）
-- 保守：只有有直接協調證據的帳號才進除名清單
+| Category | Count | % of Total |
+|----------|-------|-----------|
+| Coordinated — single-review accounts | 1,424 | 0.072% |
+| Coordinated — burst-cluster accounts | 744 | 0.037% |
+| Single-review, high business overlap | 1,193 | 0.060% |
+| Time-of-day anomaly + coordinated | 78 | 0.004% |
+| **Total flagged** | **3,439** | **0.173%** |
 
-**不保證的：**
-- 沒有 precision / recall，無監督方法本來就沒有 ground truth
-- 行為「正常」的假帳號抓不到（例如長期潛伏、慢速刷評）
-- 同樣的行為模式可能有良性解釋
-
-### 回頭驗證：為什麼兩條路線抓的人動機不同
-
-把 3,439 名 flagged 用戶放回所有維度看，他們在「不是因此被抓」的維度上跟一般用戶幾乎沒有差異（K1 餘弦相似度 0.168 vs 門檻 0.546；closed_pct 差距 +0.018）。
-
-這不是問題——正好說明**兩條路線各自找到了真正不同的行為類別**，不是同一批人的兩種看法：
-
-| 類別 | 行為 | 推測動機 |
-|------|------|---------|
-| `single_coordinated` | 多帳號 7 天內評同一家店，消失 | 受僱一次性刷評 |
-| `burst_coordinated` | 帳號早期爆發後沉默，共享目標店家 | 批量操作或收購帳號 |
-| `single_high_overlap` | 所評店家被可疑帳號高度覆蓋 | 刷評生態圈的參與者 |
-| `k1_coordinated` | 系統性早晨發評 + 共享目標 | 自動化腳本或遠端操控 |
+Output: `lifetime kmeans/result/final/removal_final.parquet` — columns: `user_id`, `reason`
 
 ---
 
-## 專案結構
+## Characteristics & Limitations
+
+**What it does:**
+- Behavioral anomaly detection without labeled data or content review
+- Two independent signals — each targets a different type of suspicious behavior
+- Conservative: only accounts with direct coordination evidence are flagged
+
+**What it doesn't guarantee:**
+- No precision / recall — unsupervised, no ground truth
+- Accounts with normal behavioral patterns won't be caught (e.g., slow drip campaigns)
+- The same behavioral pattern can have legitimate explanations
+
+### Back-Verification: Two Branches, Two Different Populations
+
+Projecting the 3,439 flagged users back onto all dimensions shows they look normal on the dimensions they weren't selected for (avg K1 cosine similarity 0.168 vs threshold 0.546; closed_pct Δ = +0.018).
+
+That's not a problem — it's evidence that **each detection path found a genuinely distinct behavioral class**:
+
+| Category | Pattern | Inferred Motivation |
+|----------|---------|---------------------|
+| `single_coordinated` | Multiple accounts hit the same business within 7 days, then disappear | Paid one-shot campaigns |
+| `burst_coordinated` | Dense early activity, shared business targets, then silent | Bulk operations or acquired accounts |
+| `single_high_overlap` | Reviews concentrated at suspect-heavy businesses | Ecosystem participants |
+| `k1_coordinated` | Systematic morning posting + shared targets | Automated scripts or remote-operated accounts |
+
+---
+
+## Structure
 
 ```
 ├── README.md
+├── README_MANDARIN.md
 ├── PIPELINE.md
-├── ANALYSIS_ZH.md / ANALYSIS_EN.md
+├── ANALYSIS_EN.md / ANALYSIS_MANDARIN.md
 │
-├── user behavier matrix/scripts/   # Step 0: 建 24 維小時矩陣
-├── K-means/scripts/                # Steps 1–6, 9–10: 時段分析
-├── lifetime kmeans/scripts/        # Steps 7–8: 生命週期分析
-└── verify/scripts/                 # Step 11: 回頭驗證
+├── user behavier matrix/scripts/   # Step 0: build 24-dim hourly matrix
+├── K-means/scripts/                # Steps 1–6, 9–10: time-of-day analysis
+├── lifetime kmeans/scripts/        # Steps 7–8: lifetime analysis
+└── verify/scripts/                 # Step 11: back-verification
 ```
 
 ---
 
-## 環境
+## Requirements
 
 ```bash
 pip install duckdb pandas numpy scikit-learn matplotlib scipy loguru
